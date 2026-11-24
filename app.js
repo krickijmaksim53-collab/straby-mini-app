@@ -3,7 +3,7 @@ const modes = ['HI-LO', 'YELP', 'WAIL', 'STANDBY', 'PA', 'RADIO'];
 const modeButtons = [...document.querySelectorAll('[data-mode]')];
 const alternateTones = { 'HI-LO': 'WAIL', YELP: 'PULSAR', WAIL: 'YELP' };
 const files = [
-  'reference-horn', 'reference-standby', 'reference-hi-lo', 'reference-wail',
+  'reference-horn-full', 'reference-standby', 'reference-hi-lo', 'reference-wail',
   'reference-yelp', 'reference-pulsar', 'client-pa', 'client-radio',
 ];
 const assets = new Map(files.map(name => [
@@ -92,12 +92,14 @@ function crossfadeLoop(source) {
   return loop;
 }
 
-function play(channel, buffer, { loop = false, level = .8, label } = {}) {
+function play(channel, buffer, { loop = false, loopStart = 0, loopEnd = 0, level = .8, label } = {}) {
   const source = context.createBufferSource();
   const gain = context.createGain();
   const now = context.currentTime;
   source.buffer = buffer;
   source.loop = loop;
+  source.loopStart = loopStart;
+  source.loopEnd = loopEnd;
   gain.gain.setValueAtTime(0, now);
   gain.gain.linearRampToValueAtTime(level, now + .015);
   source.connect(gain).connect(master);
@@ -155,9 +157,10 @@ async function trigger(channel, loop = false) {
   requests.set(channel, request);
   try {
     await unlock();
-    const buffer = await load('reference-horn');
+    const buffer = await load('reference-horn-full');
     if (requests.get(channel) !== request) return;
-    play(channel, loop ? crossfadeLoop(buffer) : buffer, { loop });
+    // Match the waveform in the steady part of the original horn recording.
+    play(channel, buffer, { loop, loopStart: 6649 / 24000, loopEnd: 76728 / 24000 });
   } catch {
     if (requests.get(channel) === request) status('Звук не загрузился. Попробуй ещё раз.');
   }
