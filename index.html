@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1017">
+  <title>Страбы · Пульт</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <main class="panel">
+    <header class="header">
+      <h1>СТРАБЫ</h1>
+      <span>ПУЛЬТ</span>
+    </header>
+    <section class="display" aria-label="Активный сигнал">
+      <div><span class="label">СИГНАЛ</span><output id="signal">STANDBY</output></div>
+      <div id="meter" aria-hidden="true"></div>
+    </section>
+    <div class="controls">
+      <label class="volume" for="volume"><span>Громкость</span><output id="level">45%</output>
+        <span class="knob-wrap">
+          <i id="volume-dial" class="knob" aria-hidden="true"></i>
+          <input id="volume" type="range" min="0" max="100" value="45">
+        </span>
+        <small>Потяни вверх или вниз</small>
+      </label>
+      <button id="selector" type="button" class="selector" aria-label="Следующий режим">
+        <span>Режим</span><strong id="mode-name">STANDBY</strong>
+        <i id="dial" class="knob" aria-hidden="true"></i>
+        <small>Нажми или поверни</small>
+      </button>
+    </div>
+    <section class="modes" aria-label="Режимы пульта">
+      <button data-mode="HI-LO" aria-pressed="false">HI-LO</button>
+      <button data-mode="YELP" aria-pressed="false">YELP</button>
+      <button data-mode="WAIL" aria-pressed="false">WAIL</button>
+      <button data-mode="STANDBY" aria-pressed="true">STANDBY</button>
+      <button data-mode="PA" aria-pressed="false">PA</button>
+    </section>
+    <div class="keys">
+      <button id="man"><b>MAN</b><small>Удержание / смена</small></button>
+      <button id="horn"><b>HORN</b><small>Держи для сигнала</small></button>
+    </div>
+    <button id="ptt"><b>PTT</b><small>Зажми и говори</small><i aria-hidden="true"></i></button>
+    <button id="stop">СТОП</button>
+    <p id="status" role="status">Для голоса с эффектом рации зажми PTT.</p>
+  </main>
+</body>
+</html>
