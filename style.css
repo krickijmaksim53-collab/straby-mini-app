@@ -7,11 +7,22 @@
   --muted: #9aaec7;
 }
 * { box-sizing: border-box; }
-body { margin: 0; padding: max(20px, env(safe-area-inset-top)) 14px max(20px, env(safe-area-inset-bottom)); }
+body {
+  margin: 0;
+  min-height: 100vh;
+  min-height: min(100dvh, var(--tg-viewport-stable-height, 100dvh));
+  display: flex;
+  flex-direction: column;
+  padding: 14px;
+  padding-top: calc(14px + max(env(safe-area-inset-top), var(--tg-safe-area-inset-top, 0px) + var(--tg-content-safe-area-inset-top, 0px)));
+  padding-bottom: calc(14px + max(env(safe-area-inset-bottom), var(--tg-safe-area-inset-bottom, 0px) + var(--tg-content-safe-area-inset-bottom, 0px)));
+  padding-left: calc(14px + max(env(safe-area-inset-left), var(--tg-safe-area-inset-left, 0px) + var(--tg-content-safe-area-inset-left, 0px)));
+  padding-right: calc(14px + max(env(safe-area-inset-right), var(--tg-safe-area-inset-right, 0px) + var(--tg-content-safe-area-inset-right, 0px)));
+}
 button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulation; }
 button:focus-visible, input:focus-visible { outline: 2px solid #b4d7ff; outline-offset: 3px; }
 .panel {
-  max-width: 430px; margin: 0 auto; padding: 17px; border: 1px solid #4789d9; border-radius: 22px;
+  width: 100%; max-width: 408px; margin: auto; padding: clamp(10px, 4vw, 17px); border: 1px solid #4789d9; border-radius: 22px;
   background: linear-gradient(160deg, #1d2b3c, #121c2a 60%, #111925);
   box-shadow: 0 16px 48px #0008, inset 0 0 0 4px #182d47;
 }
@@ -19,9 +30,10 @@ button:focus-visible, input:focus-visible { outline: 2px solid #b4d7ff; outline-
 .header { padding: 3px 4px 15px; }
 h1 { margin: 0; font-size: 1.15rem; letter-spacing: .2em; }
 .header > span, .label, .controls span { color: var(--muted); font-size: .75rem; font-weight: 700; letter-spacing: .08em; }
-.display { min-height: 77px; padding: 12px 14px; background: #090f18; border: 1px solid #2b4c70; border-radius: 10px; }
-#signal { display: block; margin-top: 3px; color: #8ac1ff; font: 700 clamp(1.37rem, 6vw, 1.95rem) ui-monospace, monospace; }
-#meter { width: 62px; height: 12px; background: repeating-linear-gradient(90deg,#243951 0 5px,transparent 5px 8px); }
+.display { gap: 8px; min-height: 77px; padding: 12px 14px; background: #090f18; border: 1px solid #2b4c70; border-radius: 10px; }
+.display > div:first-child { min-width: 0; }
+#signal { overflow-wrap: anywhere; display: block; margin-top: 3px; color: #8ac1ff; font: 700 clamp(1.12rem, 5vw, 1.75rem) ui-monospace, monospace; }
+#meter { flex: 0 0 clamp(30px, 12vw, 62px); height: 12px; background: repeating-linear-gradient(90deg,#243951 0 5px,transparent 5px 8px); }
 #meter.active { background: repeating-linear-gradient(90deg,#64aaff 0 5px,transparent 5px 8px); }
 .controls { gap: 10px; margin: 12px 0; }
 .volume, .selector {
@@ -39,8 +51,8 @@ h1 { margin: 0; font-size: 1.15rem; letter-spacing: .2em; }
 .knob::after { content: ''; position: absolute; width: 3px; height: 12px; border-radius: 2px; background: #9ecbff; left: 22px; top: 5px; }
 .selector { touch-action: none; }
 .modes, .keys { display: grid; gap: 7px; margin-bottom: 8px; }
-.modes { grid-template-columns: repeat(3, 1fr); }
-.keys { grid-template-columns: repeat(2, 1fr); }
+.modes { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.keys { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .modes button, .keys button, #stop { border: 1px solid #3c5c81; border-radius: 8px; background: #101b29; }
 .modes button { min-height: 45px; padding: 5px; font-size: .77rem; font-weight: 750; }
 .modes button[aria-pressed="true"], button.is-held { border-color: #81bdff !important; background: #224771 !important; }
@@ -63,3 +75,14 @@ small { display: block; color: #bfd0e7; margin-top: 3px; font-size: .74rem; }
 }
 .keys button:disabled { cursor: default; opacity: .47; }
 #status:empty { display: none; }
+
+@media (max-width: 360px), (max-height: 570px) {
+  .header { padding-bottom: 9px; }
+  .display { min-height: 62px; padding: 8px 10px; }
+  .controls { gap: 7px; margin: 8px 0; }
+  .volume, .selector { min-height: 119px; padding: 6px; }
+  .modes, .keys { gap: 7px; margin-bottom: 7px; }
+  .modes button { min-height: 44px; }
+  .keys button { min-height: 57px; }
+  #stop { margin-top: 3px; }
+}
