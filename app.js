@@ -12,6 +12,9 @@ const assets = new Map(files.map(name => [
 ]));
 const buffers = new Map();
 const telegram = window.Telegram?.WebApp;
+if (['ios', 'android', 'android_x'].includes(telegram?.platform)) {
+  document.documentElement.dataset.telegramMobile = '';
+}
 telegram?.ready();
 telegram?.expand();
 
