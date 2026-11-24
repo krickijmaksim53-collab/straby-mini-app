@@ -15,7 +15,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid #b4d7ff; outline-
   background: linear-gradient(160deg, #1d2b3c, #121c2a 60%, #111925);
   box-shadow: 0 16px 48px #0008, inset 0 0 0 4px #182d47;
 }
-.header, .display, .controls, #ptt { display: flex; align-items: center; justify-content: space-between; }
+.header, .display, .controls { display: flex; align-items: center; justify-content: space-between; }
 .header { padding: 3px 4px 15px; }
 h1 { margin: 0; font-size: 1.15rem; letter-spacing: .2em; }
 .header > span, .label, .controls span { color: var(--muted); font-size: .75rem; font-weight: 700; letter-spacing: .08em; }
@@ -41,18 +41,25 @@ h1 { margin: 0; font-size: 1.15rem; letter-spacing: .2em; }
 .modes, .keys { display: grid; gap: 7px; margin-bottom: 8px; }
 .modes { grid-template-columns: repeat(3, 1fr); }
 .keys { grid-template-columns: repeat(2, 1fr); }
-.modes button, .keys button, #ptt, #stop { border: 1px solid #3c5c81; border-radius: 8px; background: #101b29; }
+.modes button, .keys button, #stop { border: 1px solid #3c5c81; border-radius: 8px; background: #101b29; }
 .modes button { min-height: 45px; padding: 5px; font-size: .77rem; font-weight: 750; }
 .modes button[aria-pressed="true"], button.is-held { border-color: #81bdff !important; background: #224771 !important; }
 .keys button { min-height: 73px; padding: 7px 4px; background: #243b56; }
 .keys b { font-size: 1.27rem; letter-spacing: .05em; }
 small { display: block; color: #bfd0e7; margin-top: 3px; font-size: .74rem; }
-#man, #horn, #ptt { touch-action: none; user-select: none; -webkit-user-select: none; }
-#ptt { width: 100%; min-height: 50px; padding: 6px 12px; gap: 8px; }
-#ptt small { margin: 0 auto 0 0; }
-#ptt i { width: 8px; height: 8px; border-radius: 50%; background: #566d86; }
-#ptt.is-held i { background: #8dcaff; box-shadow: 0 0 8px #61a6ff; }
+#man, #horn { touch-action: none; user-select: none; -webkit-user-select: none; }
 #stop { width: 100%; margin-top: 8px; min-height: 46px; background: #37202a; border-color: #844756; color: #ffd1d8; font-weight: 750; }
 #status { min-height: 2.4em; margin: 12px 1px 0; font-size: .79rem; line-height: 1.4; color: var(--muted); }
 
 .knob-wrap { display: block; }
+
+#power {
+  width: 45px; height: 45px; border: 1px solid #44698f; border-radius: 12px;
+  background: #102030; color: #a7bed8; font-size: 1.35rem;
+}
+#power[aria-pressed="true"] {
+  border-color: #78b5ff; color: #e3f1ff; background: #224771;
+  box-shadow: 0 0 16px #407ec650;
+}
+.keys button:disabled { cursor: default; opacity: .47; }
+#status:empty { display: none; }

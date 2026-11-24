@@ -13,10 +13,10 @@
   <main class="panel">
     <header class="header">
       <h1>СТРАБЫ</h1>
-      <span>ПУЛЬТ</span>
+      <button id="power" type="button" aria-label="Питание" aria-pressed="false">⏻</button>
     </header>
     <section class="display" aria-label="Активный сигнал">
-      <div><span class="label">СИГНАЛ</span><output id="signal">STANDBY</output></div>
+      <div><span class="label" id="power-state">ПИТАНИЕ ВЫКЛЮЧЕНО</span><output id="signal">OFF</output></div>
       <div id="meter" aria-hidden="true"></div>
     </section>
     <div class="controls">
@@ -39,14 +39,14 @@
       <button data-mode="WAIL" aria-pressed="false">WAIL</button>
       <button data-mode="STANDBY" aria-pressed="true">STANDBY</button>
       <button data-mode="PA" aria-pressed="false">PA</button>
+      <button data-mode="RADIO" aria-pressed="false">RADIO</button>
     </section>
     <div class="keys">
       <button id="man"><b>MAN</b><small>Удержание / смена</small></button>
       <button id="horn"><b>HORN</b><small>Держи для сигнала</small></button>
     </div>
-    <button id="ptt"><b>PTT</b><small>Зажми и говори</small><i aria-hidden="true"></i></button>
     <button id="stop">СТОП</button>
-    <p id="status" role="status">Для голоса с эффектом рации зажми PTT.</p>
+    <p id="status" role="status"></p>
   </main>
 </body>
 </html>

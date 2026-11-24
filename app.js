@@ -1,8 +1,8 @@
 const get = id => document.getElementById(id);
-const modes = ['HI-LO', 'YELP', 'WAIL', 'STANDBY', 'PA'];
+const modes = ['HI-LO', 'YELP', 'WAIL', 'STANDBY', 'PA', 'RADIO'];
 const modeButtons = [...document.querySelectorAll('[data-mode]')];
 const alternateTones = { 'HI-LO': 'WAIL', YELP: 'PULSAR', WAIL: 'YELP' };
-const files = ['horn-hardware', 'manual-hardware'];
+const files = ['horn-hardware', 'manual-hardware', ...['hi-lo', 'wail', 'pulsar', 'yelp', 'pa', 'radio'].map(tone => `client-${tone}`)];
 const assets = new Map(files.map(name => [
   name,
   fetch(`audio/${name}.wav`).then(response => {
@@ -17,11 +17,12 @@ telegram?.expand();
 
 const playing = new Map();
 const requests = new Map();
-let context, master, mic, pendingMic;
+let context, master;
+let powered = false;
 let mode = 'STANDBY';
 let volume = 45;
 
-function status(message = 'Для голоса с эффектом рации зажми PTT.') {
+function status(message = '') {
   get('status').textContent = message;
 }
 
@@ -29,15 +30,17 @@ function display() {
   const signals = [
     playing.get('manual')?.label || (playing.has('siren') && mode),
     playing.has('horn') && 'HORN',
-    mic && 'PTT',
   ].filter(Boolean);
-  get('signal').value = signals.join(' + ') || mode;
+  get('signal').value = powered ? signals.join(' + ') || mode : 'OFF';
   get('meter').classList.toggle('active', signals.length > 0);
   get('mode-name').textContent = mode;
   get('dial').style.transform = `rotate(${modes.indexOf(mode) * 48 - 120}deg)`;
   modeButtons.forEach(button => button.setAttribute('aria-pressed', button.dataset.mode === mode));
   get('man').classList.toggle('is-held', playing.has('manual'));
-  get('ptt').classList.toggle('is-held', Boolean(mic));
+  get('power').setAttribute('aria-pressed', powered);
+  get('power-state').textContent = powered ? 'ПИТАНИЕ ВКЛЮЧЕНО' : 'ПИТАНИЕ ВЫКЛЮЧЕНО';
+  get('man').disabled = !powered;
+  get('horn').disabled = !powered;
   get('horn').classList.toggle('is-held', playing.has('horn'));
 }
 
@@ -70,32 +73,7 @@ async function load(name) {
   return buffers.get(name);
 }
 
-function siren(name) {
-  const presets = {
-    'HI-LO': [1.2, 625, 225],
-    YELP: [.34, 820, 280],
-    WAIL: [3.2, 730, 365],
-    PULSAR: [.16, 820, 260],
-    PA: [3.2, 730, 365],
-  };
-  const [duration, center, sweep] = presets[name];
-  const length = Math.round(context.sampleRate * duration);
-  const buffer = context.createBuffer(1, length, context.sampleRate);
-  const data = buffer.getChannelData(0);
-  const cycles = Math.round(center * duration);
-  for (let index = 0; index < length; index++) {
-    const turn = index / length;
-    const modulation = name === 'HI-LO'
-      ? (turn < .5 ? turn : 1 - turn)
-      : (1 - Math.cos(2 * Math.PI * turn)) / (2 * Math.PI);
-    const phase = 2 * Math.PI * (cycles * turn + sweep * duration * modulation);
-    const gate = name === 'PA' ? Math.min(1, Math.max(0, Math.sin(2 * Math.PI * (2 * turn + 10 * turn ** 2)) * 7)) : 1;
-    data[index] = gate * (.45 * Math.sin(phase) + .10 * Math.sin(3 * phase) + .045 * Math.sin(5 * phase));
-  }
-  return buffer;
-}
-
-function loopHorn(source) {
+function crossfadeLoop(source) {
   const raw = source.getChannelData(0);
   const blend = Math.round(source.sampleRate * .025);
   const length = raw.length - blend;
@@ -147,52 +125,27 @@ function stopPlayback(channel) {
   source.stop(now + .045);
 }
 
-function squelch() {
-  if (context?.state !== 'running') return;
-  const frames = Math.round(context.sampleRate * .13);
-  const buffer = context.createBuffer(1, frames, context.sampleRate);
-  const samples = buffer.getChannelData(0);
-  for (let i = 0; i < frames; i++) samples[i] = (Math.random() * 2 - 1) * (1 - i / frames) ** 2;
-  const source = context.createBufferSource();
-  const filter = context.createBiquadFilter();
-  const gain = context.createGain();
-  filter.type = 'bandpass';
-  filter.frequency.value = 1550;
-  gain.gain.value = .13;
-  source.buffer = buffer;
-  source.connect(filter).connect(gain).connect(master);
-  source.onended = () => { source.disconnect(); filter.disconnect(); gain.disconnect(); };
-  source.start();
-}
-
-function stopMic(click = false) {
-  pendingMic = undefined;
-  if (!mic) return;
-  mic.stream.getTracks().forEach(track => track.stop());
-  mic.nodes.forEach(node => node.disconnect());
-  mic = undefined;
-  if (click) squelch();
-}
-
-async function select(next) {
-  if (mode === next) return;
+async function select(next, restart = false) {
+  if (mode === next && !restart) return;
   stopPlayback('manual');
   stopPlayback('siren');
   mode = next;
   display();
-  if (mode === 'STANDBY' || mode === 'PA') return;
+  if (!powered || !alternateTones[mode]) return;
   const request = Symbol();
   requests.set('siren', request);
   try {
     await unlock();
+    const buffer = await load(`client-${next.toLowerCase()}`);
     if (requests.get('siren') !== request) return;
-    play('siren', siren(next), { loop: true, level: playing.has('manual') ? 0 : .58 });
+    play('siren', crossfadeLoop(buffer), { loop: true, level: playing.has('manual') ? 0 : .68 });
   } catch {
     if (requests.get('siren') === request) status('Сирена не запустилась. Попробуй ещё раз.');
   }
 }
 
 async function trigger(channel, loop = false) {
+  if (!powered) return;
   stopPlayback(channel);
   display();
   const request = Symbol();
@@ -201,7 +154,7 @@ async function trigger(channel, loop = false) {
     await unlock();
     const buffer = await load('horn-hardware');
     if (requests.get(channel) !== request) return;
-    play(channel, loop ? loopHorn(buffer) : buffer, { loop });
+    play(channel, loop ? crossfadeLoop(buffer) : buffer, { loop });
   } catch {
     if (requests.get(channel) === request) status('Звук не загрузился. Попробуй ещё раз.');
   }
@@ -224,25 +177,26 @@ function releaseManual() {
 }
 
 async function startManual() {
+  if (!powered) return;
   const alternate = alternateTones[mode];
   if (alternate && (playing.has('manual') || requests.has('manual'))) {
     stopPlayback('manual');
-    setBaseToneLevel(.58);
+    setBaseToneLevel(.68);
     display();
     return;
   }
   stopPlayback('manual');
   const standby = mode === 'STANDBY';
-  const tone = alternate || (standby ? 'WAIL' : 'PA');
+  const tone = alternate || (standby ? 'WAIL' : mode);
   const request = Symbol();
   requests.set('manual', request);
   try {
     await unlock();
-    const buffer = standby ? await load('manual-hardware') : siren(tone);
+    const buffer = await load(standby ? 'manual-hardware' : `client-${tone.toLowerCase()}`);
     if (requests.get('manual') !== request) return;
     requests.delete('manual');
     if (alternate) setBaseToneLevel(0);
-    play('manual', buffer, {
+    play('manual', standby ? buffer : crossfadeLoop(buffer), {
       loop: true,
       loopStart: standby ? .58 : 0,
       loopEnd: standby ? 1.4975 : 0,
@@ -252,50 +206,6 @@ async function startManual() {
   } catch {
     if (requests.get('manual') === request) requests.delete('manual');
     status('Ручной сигнал не запустился. Попробуй ещё раз.');
-  }
-}
-
-async function startMic() {
-  if (!navigator.mediaDevices?.getUserMedia) {
-    status('Этот браузер не даёт доступ к микрофону. Открой приложение в Telegram по HTTPS.');
-    return;
-  }
-  const id = Symbol();
-  pendingMic = id;
-  status('Если Telegram запросит доступ, разреши его и зажми PTT снова.');
-  try {
-    await unlock();
-    if (pendingMic !== id) return;
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: false },
-    });
-    if (pendingMic !== id) {
-      stream.getTracks().forEach(track => track.stop());
-      return;
-    }
-    const input = context.createMediaStreamSource(stream);
-    const high = context.createBiquadFilter();
-    high.type = 'highpass';
-    high.frequency.value = 460;
-    const low = context.createBiquadFilter();
-    low.type = 'lowpass';
-    low.frequency.value = 2950;
-    const compressor = context.createDynamicsCompressor();
-    compressor.threshold.value = -27;
-    compressor.ratio.value = 6;
-    const rasp = context.createWaveShaper();
-    rasp.curve = Float32Array.from({ length: 512 }, (_, i) => .63 * Math.tanh(3 * (i / 255.5 - 1)));
-    const monitor = context.createGain();
-    monitor.gain.value = .37;
-    input.connect(high).connect(low).connect(compressor).connect(rasp).connect(monitor).connect(master);
-    mic = { stream, nodes: [input, high, low, compressor, rasp, monitor] };
-    display();
-    status('Микрофон включён. Отпусти PTT, чтобы выключить.');
-  } catch {
-    if (pendingMic === id) {
-      pendingMic = undefined;
-      status('Микрофон недоступен. Проверь разрешения Telegram.');
-    }
   }
 }
 
@@ -403,19 +313,22 @@ hold(get('horn'), () => trigger('horn', true), () => {
   stopPlayback('horn');
   display();
 });
-hold(get('ptt'), startMic, () => {
-  const active = pendingMic !== undefined || Boolean(mic);
-  stopMic(true);
-  display();
-  if (active) status();
-});
-const stop = () => {
-  mode = 'STANDBY';
+function silence() {
   requests.clear();
   for (const channel of playing.keys()) stopPlayback(channel);
-  stopMic();
-  display();
   status();
+  display();
+}
+
+get('power').addEventListener('click', () => {
+  powered = !powered;
+  if (powered) select(mode, true);
+  else silence();
+});
+
+const stop = () => {
+  mode = 'STANDBY';
+  silence();
 };
 get('stop').addEventListener('click', stop);
 document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); });
