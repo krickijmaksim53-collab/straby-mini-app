@@ -2,7 +2,10 @@ const get = id => document.getElementById(id);
 const modes = ['HI-LO', 'YELP', 'WAIL', 'STANDBY', 'PA', 'RADIO'];
 const modeButtons = [...document.querySelectorAll('[data-mode]')];
 const alternateTones = { 'HI-LO': 'WAIL', YELP: 'PULSAR', WAIL: 'YELP' };
-const files = ['horn-hardware', 'manual-hardware', ...['hi-lo', 'wail', 'pulsar', 'yelp', 'pa', 'radio'].map(tone => `client-${tone}`)];
+const files = [
+  'reference-horn', 'reference-standby', 'reference-hi-lo', 'reference-wail',
+  'reference-yelp', 'reference-pulsar', 'client-pa', 'client-radio',
+];
 const assets = new Map(files.map(name => [
   name,
   fetch(`audio/${name}.wav`).then(response => {
@@ -39,7 +42,6 @@ function display() {
   get('mode-name').textContent = mode;
   get('dial').style.transform = `rotate(${modes.indexOf(mode) * 48 - 120}deg)`;
   modeButtons.forEach(button => button.setAttribute('aria-pressed', button.dataset.mode === mode));
-  get('man').classList.toggle('is-held', playing.has('manual'));
   get('power').setAttribute('aria-pressed', powered);
   get('power-state').textContent = powered ? 'ПИТАНИЕ ВКЛЮЧЕНО' : 'ПИТАНИЕ ВЫКЛЮЧЕНО';
   get('man').disabled = !powered;
@@ -90,14 +92,12 @@ function crossfadeLoop(source) {
   return loop;
 }
 
-function play(channel, buffer, { loop = false, loopStart = 0, loopEnd = 0, level = .8, label } = {}) {
+function play(channel, buffer, { loop = false, level = .8, label } = {}) {
   const source = context.createBufferSource();
   const gain = context.createGain();
   const now = context.currentTime;
   source.buffer = buffer;
   source.loop = loop;
-  source.loopStart = loopStart;
-  source.loopEnd = loopEnd;
   gain.gain.setValueAtTime(0, now);
   gain.gain.linearRampToValueAtTime(level, now + .015);
   source.connect(gain).connect(master);
@@ -139,7 +139,7 @@ async function select(next, restart = false) {
   requests.set('siren', request);
   try {
     await unlock();
-    const buffer = await load(`client-${next.toLowerCase()}`);
+    const buffer = await load(`reference-${next.toLowerCase()}`);
     if (requests.get('siren') !== request) return;
     play('siren', crossfadeLoop(buffer), { loop: true, level: playing.has('manual') ? 0 : .68 });
   } catch {
@@ -155,7 +155,7 @@ async function trigger(channel, loop = false) {
   requests.set(channel, request);
   try {
     await unlock();
-    const buffer = await load('horn-hardware');
+    const buffer = await load('reference-horn');
     if (requests.get(channel) !== request) return;
     play(channel, loop ? crossfadeLoop(buffer) : buffer, { loop });
   } catch {
@@ -169,12 +169,6 @@ function setBaseToneLevel(level) {
 
 function releaseManual() {
   if (alternateTones[mode]) return;
-  requests.delete('manual');
-  const manual = playing.get('manual');
-  if (mode === 'STANDBY' && manual) {
-    manual.source.loop = false;
-    return;
-  }
   stopPlayback('manual');
   display();
 }
@@ -191,18 +185,17 @@ async function startManual() {
   stopPlayback('manual');
   const standby = mode === 'STANDBY';
   const tone = alternate || (standby ? 'WAIL' : mode);
+  const asset = standby ? 'reference-standby' : alternate ? `reference-${tone.toLowerCase()}` : `client-${tone.toLowerCase()}`;
   const request = Symbol();
   requests.set('manual', request);
   try {
     await unlock();
-    const buffer = await load(standby ? 'manual-hardware' : `client-${tone.toLowerCase()}`);
+    const buffer = await load(asset);
     if (requests.get('manual') !== request) return;
     requests.delete('manual');
     if (alternate) setBaseToneLevel(0);
-    play('manual', standby ? buffer : crossfadeLoop(buffer), {
+    play('manual', crossfadeLoop(buffer), {
       loop: true,
-      loopStart: standby ? .58 : 0,
-      loopEnd: standby ? 1.4975 : 0,
       level: standby ? .72 : .58,
       label: tone,
     });
@@ -311,12 +304,20 @@ drag(volumeInput, event => {
 }, (event, origin) => setVolume(origin.volume + (origin.y - event.clientY) * 1.2));
 volumeInput.addEventListener('input', event => setVolume(Number(event.target.value)));
 setVolume(volume);
-hold(get('man'), startManual, releaseManual);
+hold(get('man'), () => {
+  if (!powered) return;
+  get('man').classList.add('is-held');
+  startManual();
+}, () => {
+  get('man').classList.remove('is-held');
+  releaseManual();
+});
 hold(get('horn'), () => trigger('horn', true), () => {
   stopPlayback('horn');
   display();
 });
 function silence() {
+  get('man').classList.remove('is-held');
   requests.clear();
   for (const channel of playing.keys()) stopPlayback(channel);
   status();
